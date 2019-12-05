@@ -37,12 +37,6 @@ export async function findByForeignKeys<
   scope?: Filter<Target>,
   options?: Options,
 ): Promise<(Target & TargetRelations)[]> {
-  // throw error if scope is defined and non-empty
-  // see https://github.com/strongloop/loopback-next/issues/3453
-  if (scope && !_.isEmpty(scope)) {
-    throw new Error('scope is not supported');
-  }
-
   let value;
 
   if (Array.isArray(fkValues)) {
@@ -60,9 +54,26 @@ export async function findByForeignKeys<
   }
 
   const where = ({[fkName]: value} as unknown) as Where<Target>;
-  const targetFilter = {where};
+  if (scope && !_.isEmpty(scope)) {
+    scope = await combineFilters(where, scope);
+  } else {
+    scope = {where} as Filter<Target>;
+  }
 
-  return targetRepository.find(targetFilter, options);
+  return targetRepository.find(scope, options);
+}
+
+/** A helper that combines where clauses for the scope filter
+ *
+ * @param whereClause a new added where clause
+ * @param scope the passed in scope filter
+ */
+async function combineFilters<Target extends Entity>(
+  whereClause: Where<Target>,
+  scope: Filter<Target>,
+): Promise<Filter<Target>> {
+  scope.where = Object.assign(whereClause, scope.where);
+  return scope;
 }
 
 export type StringKeyOf<T> = Extract<keyof T, string>;
