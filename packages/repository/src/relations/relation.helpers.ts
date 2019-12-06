@@ -14,13 +14,14 @@ import {
   Inclusion,
   Options,
   Where,
+  FilterBuilder,
 } from '..';
 const debug = debugFactory('loopback:repository:relation-helpers');
 
 /**
  * Finds model instances that contain any of the provided foreign key values.
  *
- * @param targetRepository - The target repository where the model instances are found
+ * @param targetRepository - The target repository where the related model instances are found
  * @param fkName - Name of the foreign key
  * @param fkValues - One value or array of values of the foreign key to be included
  * @param scope - Additional scope constraints (not currently supported)
@@ -54,26 +55,15 @@ export async function findByForeignKeys<
   }
 
   const where = ({[fkName]: value} as unknown) as Where<Target>;
+
   if (scope && !_.isEmpty(scope)) {
-    scope = await combineFilters(where, scope);
+    // combine where clause to scope filter
+    scope = new FilterBuilder(scope).impose({where}).filter;
   } else {
     scope = {where} as Filter<Target>;
   }
 
   return targetRepository.find(scope, options);
-}
-
-/** A helper that combines where clauses for the scope filter
- *
- * @param whereClause a new added where clause
- * @param scope the passed in scope filter
- */
-async function combineFilters<Target extends Entity>(
-  whereClause: Where<Target>,
-  scope: Filter<Target>,
-): Promise<Filter<Target>> {
-  scope.where = Object.assign(whereClause, scope.where);
-  return scope;
 }
 
 export type StringKeyOf<T> = Extract<keyof T, string>;
